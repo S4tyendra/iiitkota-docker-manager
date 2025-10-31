@@ -200,7 +200,7 @@ function createDockerComposeContent(imageName: string, tag: string, config: Reso
 
 services:
   ${imageName}:
-    image: ghcr.io/web-iiitkota/${imageName}:${tag}
+    image: ghcr.io/iiitkota/${imageName}:${tag}
     container_name: ${imageName}
     restart: ${config.restartPolicy || 'unless-stopped'}
     ports:
@@ -235,7 +235,7 @@ const app = new Hono()
 const docker = new Docker()
 
 const dockerAuthConfig = {
-  username: 'web-iiitkota',
+  username: 'iiitkota',
   password: GITHUB_PAT,
   serveraddress: 'ghcr.io'
 }
@@ -246,7 +246,7 @@ app.use('/static/*', serveStatic({ root: './' }))
 
 // --- GitHub API Functions ---
 async function getGitHubPackages(): Promise<GitHubPackage[]> {
-  const response = await fetch('https://api.github.com/users/web-iiitkota/packages?package_type=container', {
+  const response = await fetch('https://api.github.com/users/iiitkota/packages?package_type=container', {
     headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json' }
   })
   if (!response.ok) throw new Error(`GitHub API error (Packages): ${response.status}`)
@@ -254,7 +254,7 @@ async function getGitHubPackages(): Promise<GitHubPackage[]> {
 }
 
 async function getPackageVersions(packageName: string): Promise<GitHubVersion[]> {
-  const response = await fetch(`https://api.github.com/users/web-iiitkota/packages/container/${packageName}/versions`, {
+  const response = await fetch(`https://api.github.com/users/iiitkota/packages/container/${packageName}/versions`, {
     headers: { 'Authorization': `Bearer ${GITHUB_PAT}`, 'Accept': 'application/vnd.github+json' }
   })
   if (!response.ok) throw new Error(`GitHub API error (Versions): ${response.status}`)
@@ -312,7 +312,7 @@ async function getImageInfo(): Promise<{ images: ImageInfo[], nginxConfig: Nginx
       const latestTag = getLatestTag(versions)
       if (!latestTag) continue
 
-      const imageBaseName = `ghcr.io/web-iiitkota/${pkg.name}`
+      const imageBaseName = `ghcr.io/iiitkota/${pkg.name}`
       
       const configPath = join(ensureEnvDir(pkg.name), 'config.json')
       let savedConfig: Partial<ResourceLimits> = {};
@@ -966,7 +966,7 @@ app.get('/', async (c) => {
           </div>
           
           <div class="actions">
-            <button class="action-btn" data-action="update" data-image="ghcr.io/web-iiitkota/${img.name}:${img.remoteTag}">🔄 Update/Pull</button>
+            <button class="action-btn" data-action="update" data-image="ghcr.io/iiitkota/${img.name}:${img.remoteTag}">🔄 Update/Pull</button>
             
             ${img.containerId ? `
               <div class="grid">
@@ -978,7 +978,7 @@ app.get('/', async (c) => {
                 <button class="action-btn outline" data-action="logs" data-container-id="${img.containerId}" data-container-name="${img.name}">📄 Logs</button>
               </div>
             ` : `
-              <button class="action-btn" data-action="start-compose" data-service="${img.name}" data-image="ghcr.io/web-iiitkota/${img.name}:${img.localTag || img.remoteTag}" ${!img.localTag ? 'disabled' : ''}>🚀 Start</button>
+              <button class="action-btn" data-action="start-compose" data-service="${img.name}" data-image="ghcr.io/iiitkota/${img.name}:${img.localTag || img.remoteTag}" ${!img.localTag ? 'disabled' : ''}>🚀 Start</button>
             `}
           </div>
         </div>
@@ -1030,7 +1030,7 @@ app.get('/', async (c) => {
             </div>
             ${img.containerId ? `
               <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; text-align: center;">
-                <button class="action-btn" data-action="recreate-compose" data-service="${img.name}" data-image="ghcr.io/web-iiitkota/${img.name}:${img.localTag || img.remoteTag}">💾 Save & Recreate Container</button>
+                <button class="action-btn" data-action="recreate-compose" data-service="${img.name}" data-image="ghcr.io/iiitkota/${img.name}:${img.localTag || img.remoteTag}">💾 Save & Recreate Container</button>
                 <p style="font-size: 0.8em; opacity: 0.7; margin-top: 0.5rem;">Recreates the container with the new configuration above.</p>
               </div>
             ` : ''}
