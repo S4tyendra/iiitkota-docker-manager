@@ -1,5 +1,7 @@
 # Docker Image Manager
 
+> This repo focuses on iiitkota related structure and config. you can configure for your docker server with auth.
+
 A simple, self-hosted web dashboard built with Bun and Hono to manage Docker images and containers, with deep integration for GitHub Container Registry (GHCR) and automated Nginx proxy configuration.
 
 This tool provides a single-pane-of-glass view to compare local container images against the latest versions in your `iiitkota` GHCR organization, update them, manage container lifecycles, and automatically configure Nginx as a reverse proxy.
