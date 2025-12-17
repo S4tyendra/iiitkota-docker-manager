@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { basicAuth } from 'hono/basic-auth';
 import { stream } from 'hono/streaming';
+import { cors } from 'hono/cors';
 import { CONFIG } from './config';
 import { DockerManager } from './docker';
 import { NginxManager } from './nginx';
@@ -9,6 +10,12 @@ import type { ServicePayload } from './types';
 const app = new Hono();
 const dockerMgr = new DockerManager();
 const nginxMgr = new NginxManager();
+
+// CORS Middleware
+app.use('/*', cors({
+  origin: CONFIG.ALLOWED_ORIGINS,
+  credentials: true,
+}));
 
 // Auth Middleware
 app.use('/*', basicAuth({ username: CONFIG.AUTH.USERNAME, password: CONFIG.AUTH.PASSWORD }));
@@ -96,6 +103,7 @@ app.get('/images/pull', async (c) => {
 
 // 4. List Services (Simple JSON)
 app.get('/services', async (c) => {
+  try {
     const containers = await dockerMgr.instance.listContainers({ all: true });
     // Filter for our managed services if needed, or return all
     return c.json(containers.map(ct => ({
@@ -105,6 +113,9 @@ app.get('/services', async (c) => {
         state: ct.State,
         status: ct.Status
     })));
+  } catch (err: any) {
+    return c.json({ error: `Docker Error: ${err.message}` }, 500);
+  }
 });
 
 console.log(`running on port ${CONFIG.PORT}`);
