@@ -16,7 +16,8 @@ export const CONFIG = {
   },
   DOMAIN: {
     BASE: 'iiitkota.ac.in',
-  }
+  },
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || Bun.env.ALLOWED_ORIGINS || ['http://localhost:5173', 'https://server.iiitkota.ac.in'],
 };
 
 if (!CONFIG.GITHUB_PAT) {
