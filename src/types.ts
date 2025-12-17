@@ -6,7 +6,8 @@ export interface DockerServiceConfig {
   restartPolicy?: string;
   domain?: string;
   clientMaxBodySize?: string;
-  imageTag?: string;
+  imageTag?: string; // Tag specific (e.g. "latest", "v1")
+  image?: string;    // Full image name (e.g. "nginx:alpine")
 }
 
 export interface ServicePayload {

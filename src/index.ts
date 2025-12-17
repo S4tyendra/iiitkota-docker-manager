@@ -31,6 +31,7 @@ app.post('/services/start', async (c) => {
     }
 
     // 1. Docker Compose
+    config.image = image; // Save image in config for future restarts
     const composeContent = dockerMgr.generateComposeContent(service, image, config);
     await dockerMgr.startService(service, composeContent, !!recreate);
 
@@ -101,18 +102,70 @@ app.get('/images/pull', async (c) => {
   });
 });
 
-// 4. List Services (Simple JSON)
+// 3. GET .ENV
+app.get('/services/:name/env', async (c) => {
+    const name = c.req.param('name');
+    const content = dockerMgr.readEnv(name);
+    return c.text(content);
+});
+
+// 4. SAVE .ENV & RESTART
+app.post('/services/:name/env', async (c) => {
+    const name = c.req.param('name');
+    try {
+        const body = await c.req.json();
+        if (typeof body.content !== 'string') return c.json({ error: 'Content string required' }, 400);
+
+        // 1. Save new env
+        dockerMgr.saveEnv(name, body.content);
+
+        // 2. Restart Service
+        const savedConfig = dockerMgr.readConfig(name);
+        
+        // Try to recover image from saved config or running container
+        let image = savedConfig?.image;
+        if (!image) {
+             const containers = await dockerMgr.instance.listContainers({ all: true, filters: { name: [name] } });
+             const container = containers.find(c => c.Names.some(n => n.endsWith('/' + name)));
+             if (container) image = container.Image;
+        }
+
+        if (image && savedConfig) {
+             // Ensure image is in config now
+             savedConfig.image = image;
+             const composeContent = dockerMgr.generateComposeContent(name, image, savedConfig);
+             await dockerMgr.startService(name, composeContent, true); // recreate=true
+             return c.json({ success: true, message: 'Environment variables saved and service restarted' });
+        }
+        
+        return c.json({ success: true, message: 'Environment variables saved. Restart skipped (missing config/image).' });
+
+    } catch (err: any) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+
+// 5. List Services (Merged with Config)
 app.get('/services', async (c) => {
   try {
     const containers = await dockerMgr.instance.listContainers({ all: true });
-    // Filter for our managed services if needed, or return all
-    return c.json(containers.map(ct => ({
-        id: ct.Id.substring(0, 12),
-        names: ct.Names,
-        image: ct.Image,
-        state: ct.State,
-        status: ct.Status
-    })));
+    
+    // Enrich with saved config
+    const enriched = containers.map(ct => {
+        const name = ct.Names[0].replace(/^\//, '');
+        const savedConfig = dockerMgr.readConfig(name);
+        return {
+            id: ct.Id.substring(0, 12),
+            names: ct.Names,
+            name: name,
+            image: ct.Image,
+            state: ct.State,
+            status: ct.Status,
+            config: savedConfig || {}
+        };
+    });
+
+    return c.json(enriched);
   } catch (err: any) {
     return c.json({ error: `Docker Error: ${err.message}` }, 500);
   }
