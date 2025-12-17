@@ -23,13 +23,43 @@ export class DockerManager {
     return join(this.ensureEnvDir(serviceName), '.env');
   }
 
-  // Generate Docker Compose file content
+  getConfigFilePath(serviceName: string): string {
+    return join(this.ensureEnvDir(serviceName), 'config.json');
+  }
+
+  saveConfig(serviceName: string, config: DockerServiceConfig) {
+    const path = this.getConfigFilePath(serviceName);
+    writeFileSync(path, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
+  readConfig(serviceName: string): DockerServiceConfig | null {
+    const path = this.getConfigFilePath(serviceName);
+    if (!existsSync(path)) return null;
+    try {
+      return JSON.parse(readFileSync(path, 'utf-8'));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  readEnv(serviceName: string): string {
+    const path = this.getEnvFilePath(serviceName);
+    if (!existsSync(path)) return '';
+    return readFileSync(path, 'utf-8');
+  }
+
+  saveEnv(serviceName: string, content: string) {
+    const path = this.getEnvFilePath(serviceName);
+    writeFileSync(path, content, 'utf-8');
+  }
+
   generateComposeContent(serviceName: string, imageName: string, config: DockerServiceConfig): string {
     const envPath = this.getEnvFilePath(serviceName);
     const portMapping = `${config.hostPort}:${config.containerPort}`;
     
-    // Ensure .env exists
     if (!existsSync(envPath)) writeFileSync(envPath, '', { flag: 'wx' });
+
+    this.saveConfig(serviceName, config);
 
     return `version: '3.8'
 services:
