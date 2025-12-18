@@ -30,7 +30,12 @@ db.run(`
 
 export const DB = {
   get allUsers() {
-    return db.query("SELECT id, username, is_admin FROM users").all() as Partial<User>[];
+    const users = db.query("SELECT id, username, is_admin FROM users").all() as Partial<User>[];
+    for (const user of users) {
+      user.is_admin = Boolean(user.is_admin);
+      user.permissions = db.query("SELECT scope, action FROM permissions WHERE user_id = ?").all(user.id) as Permission[];
+    }
+    return users;
   },
 
   createUser(username: string, passwordHash: string): number | bigint {
