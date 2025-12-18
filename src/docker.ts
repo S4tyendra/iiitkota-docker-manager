@@ -102,4 +102,67 @@ networks:
       throw new Error(`Compose Up Failed: ${err}`);
     }
   }
+  async stopService(serviceName: string) {
+    const dir = this.ensureEnvDir(serviceName);
+    const proc = Bun.spawn(['docker', 'compose', 'stop'], { cwd: dir, stderr: 'pipe' });
+    const exitCode = await proc.exited;
+    if (exitCode !== 0) {
+      const err = await new Response(proc.stderr).text();
+      throw new Error(`Stop Failed: ${err}`);
+    }
+  }
+
+  async restartService(serviceName: string) {
+    const dir = this.ensureEnvDir(serviceName);
+    const proc = Bun.spawn(['docker', 'compose', 'restart'], { cwd: dir, stderr: 'pipe' });
+    const exitCode = await proc.exited;
+    if (exitCode !== 0) {
+      const err = await new Response(proc.stderr).text();
+      throw new Error(`Restart Failed: ${err}`);
+    }
+  }
+
+  async deleteService(serviceName: string) {
+    const dir = this.ensureEnvDir(serviceName);
+    // 1. Docker Compose Down
+    const proc = Bun.spawn(['docker', 'compose', 'down', '-v'], { cwd: dir, stderr: 'pipe' });
+    await proc.exited; // Ignore errors if it's already down/gone
+
+    // 2. Remove Config Directory
+    await Bun.spawn(['rm', '-rf', dir]).exited;
+  }
+
+  async getLatestImageDigest(imageName: string): Promise<string | null> {
+    if (!imageName.startsWith('ghcr.io/')) return null;
+
+    try {
+      // Handle image name with digest or tag
+      let cleanName = imageName;
+      if (cleanName.includes('@')) cleanName = cleanName.split('@')[0];
+
+      const parts = cleanName.split('/');
+      // parts[0] is ghcr.io
+      const repoAndTag = parts.slice(1).join('/');
+      let [repo, tag] = repoAndTag.split(':');
+      if (!tag) tag = 'latest';
+
+      const url = `https://ghcr.io/v2/${repo}/manifests/${tag}`;
+
+      const response = await fetch(url, {
+        method: 'HEAD',
+        headers: {
+          'Authorization': `Bearer ${CONFIG.GITHUB_PAT}`,
+          'Accept': 'application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'
+        }
+      });
+
+      if (response.ok) {
+        return response.headers.get('Docker-Content-Digest');
+      }
+      return null;
+    } catch (e) {
+      console.error('Error fetching remote digest:', e);
+      return null;
+    }
+  }
 }

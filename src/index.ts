@@ -145,15 +145,57 @@ app.post('/services/:name/env', async (c) => {
     }
 });
 
-// 5. List Services (Merged with Config)
+
+
+// 5. STOP SERVICE
+app.post('/services/stop', async (c) => {
+    try {
+        const { service } = await c.req.json() as { service: string };
+        if (!service) return c.json({ error: 'Service name required' }, 400);
+        await dockerMgr.stopService(service);
+        return c.json({ success: true, message: `Service ${service} stopped` });
+    } catch (err: any) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+
+// 6. RESTART SERVICE
+app.post('/services/restart', async (c) => {
+    try {
+        const { service } = await c.req.json() as { service: string };
+        if (!service) return c.json({ error: 'Service name required' }, 400);
+        await dockerMgr.restartService(service);
+        return c.json({ success: true, message: `Service ${service} restarted` });
+    } catch (err: any) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+
+// 7. DELETE SERVICE
+app.delete('/services/:name', async (c) => {
+    const name = c.req.param('name');
+    try {
+        await dockerMgr.deleteService(name);
+        // Also try to cleanup nginx config if exists?
+        // For now, let's keep it simple.
+        return c.json({ success: true, message: `Service ${name} deleted` });
+    } catch (err: any) {
+        return c.json({ success: false, error: err.message }, 500);
+    }
+});
+
+// 8. List Services (Merged with Config)
 app.get('/services', async (c) => {
   try {
     const containers = await dockerMgr.instance.listContainers({ all: true });
     
     // Enrich with saved config
-    const enriched = containers.map(ct => {
+    const enriched = await Promise.all(containers.map(async (ct) => {
         const name = ct.Names[0].replace(/^\//, '');
         const savedConfig = dockerMgr.readConfig(name);
+        
+        const latestImageDigest = await dockerMgr.getLatestImageDigest(ct.Image);
+
         return {
             id: ct.Id.substring(0, 12),
             names: ct.Names,
@@ -161,9 +203,11 @@ app.get('/services', async (c) => {
             image: ct.Image,
             state: ct.State,
             status: ct.Status,
-            config: savedConfig || {}
+            config: savedConfig || {},
+            latestImageDigest,
+            currentImageDigest: ct.ImageID
         };
-    });
+    }));
 
     return c.json(enriched);
   } catch (err: any) {

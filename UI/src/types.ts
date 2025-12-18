@@ -5,6 +5,8 @@ export interface Service {
     state: string;
     status: string;
     config?: DockerServiceConfig;
+    latestImageDigest?: string;
+    currentImageDigest?: string;
 }
 
 export interface DockerServiceConfig {

@@ -9,25 +9,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { RefreshCw, MoreHorizontal, Settings, Terminal, Square } from 'lucide-react';
+import { RefreshCw, MoreHorizontal } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import type { Service } from '@/types';
-import { ServiceSheet } from './ServiceSheet';
+import { ServiceDrawer } from './ServiceDrawer';
 
 export function ServiceList() {
     const [services, setServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(false);
 
     const [selectedService, setSelectedService] = useState<Service | null>(null);
-    const [sheetOpen, setSheetOpen] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
 
     const fetchServices = async () => {
         setLoading(true);
@@ -59,7 +51,7 @@ export function ServiceList() {
 
     const handleManage = (service: Service) => {
         setSelectedService(service);
-        setSheetOpen(true);
+        setDrawerOpen(true);
     };
 
     return (
@@ -91,7 +83,7 @@ export function ServiceList() {
                             </TableRow>
                         ) : (
                             services.map((service) => (
-                                <TableRow key={service.id}>
+                                <TableRow key={service.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleManage(service)}>
                                     <TableCell>
                                         <Badge variant={getStatusColor(service.state)} className={service.state === 'running' ? 'bg-green-600 hover:bg-green-700' : ''}>
                                             {service.state}
@@ -101,36 +93,15 @@ export function ServiceList() {
                                         {service.names[0].replace('/', '')}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground font-mono text-xs">
-                                        {service.image.split('/').pop()} {/* Shorten image for display */}
+                                        {service.image.split('/').pop()}
                                     </TableCell>
                                     <TableCell className="text-xs text-muted-foreground">
                                         {service.status}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <span className="sr-only">Open menu</span>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleManage(service)}>
-                                                    <Settings className="mr-2 h-4 w-4" /> Manage
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleManage(service)}>
-                                                    <Terminal className="mr-2 h-4 w-4" /> View Logs
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem disabled>
-                                                    <RefreshCw className="mr-2 h-4 w-4" /> Restart (WIP)
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem disabled>
-                                                    <Square className="mr-2 h-4 w-4" /> Stop (WIP)
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); handleManage(service); }}>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -139,11 +110,11 @@ export function ServiceList() {
                 </Table>
             </div>
 
-            {/* Manage Sheet */}
+            {/* Manage Drawer */}
             {selectedService && (
-                <ServiceSheet
-                    isOpen={sheetOpen}
-                    onClose={() => setSheetOpen(false)}
+                <ServiceDrawer
+                    isOpen={drawerOpen}
+                    onClose={() => setDrawerOpen(false)}
                     service={selectedService}
                 />
             )}
