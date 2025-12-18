@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Drawer,
     DrawerContent,
@@ -10,9 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Download, RefreshCw, Save, Trash2, Power, RotateCcw } from 'lucide-react';
+import { EnvEditor } from './EnvEditor';
+import { EmbeddedLogViewer } from './LogViewer';
 import { apiClient, getApiConfig, getServiceEnv, saveServiceEnv } from '@/lib/api';
 import type { ServicePayload, Service } from '@/types';
 import { toast } from 'sonner';
@@ -28,7 +29,6 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
     const image = service.image;
 
     const [activeTab, setActiveTab] = useState("manage");
-    // Form State (Config)
     const [formData, setFormData] = useState({
         hostPort: '',
         containerPort: '',
@@ -37,39 +37,27 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
         cpuLimit: '0.5'
     });
 
-    // Env State
     const [envContent, setEnvContent] = useState('');
     const [envLoading, setEnvLoading] = useState(false);
     const [envSaving, setEnvSaving] = useState(false);
 
-    // Logs State
-    const [logs, setLogs] = useState<string[]>([]);
-    const logAbortController = useRef<AbortController | null>(null);
-
-    // Pull State
     const [pulling, setPulling] = useState(false);
     const [pullLogs, setPullLogs] = useState<string[]>([]);
 
-    // Loading State
     const [submitting, setSubmitting] = useState(false);
 
-    // Action Loading States
     const [stopping, setStopping] = useState(false);
     const [restarting, setRestarting] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
 
-    // Initialize Config from Service
     useEffect(() => {
         if (isOpen) {
-            // Reset states
-            setLogs([]);
             setPullLogs([]);
             setPulling(false);
             setEnvContent('');
-            setActiveTab("manage"); // Default to Manage
+            setActiveTab("manage");
 
-            // Prefill config
             if (service.config) {
                 setFormData({
                     hostPort: service.config.hostPort || '',
@@ -82,45 +70,7 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
         }
     }, [isOpen, service]);
 
-    // --- Stream Logs ---
-    useEffect(() => {
-        if (!isOpen || activeTab !== 'logs') return;
 
-        setLogs([`Connecting to logs for ${serviceName}...`]);
-        logAbortController.current = new AbortController();
-
-        const fetchLogs = async () => {
-            const { host, auth } = getApiConfig();
-            const url = `${host}/services/${service.id}/logs`;
-
-            try {
-                const response = await fetch(url, {
-                    headers: auth ? { 'Authorization': `Basic ${auth}` } : {},
-                    signal: logAbortController.current?.signal,
-                });
-
-                if (!response.body) throw new Error('No body');
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    setLogs(prev => [...prev, chunk]);
-                }
-            } catch (err: any) {
-                if (err.name !== 'AbortError') {
-                    setLogs(prev => [...prev, `\nError: ${err.message}`]);
-                }
-            }
-        };
-
-        fetchLogs();
-        return () => logAbortController.current?.abort();
-    }, [isOpen, activeTab, service.id, serviceName]);
-
-    // --- Fetch Env ---
     useEffect(() => {
         if (isOpen && activeTab === 'env') {
             const fetchEnv = async () => {
@@ -139,7 +89,6 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
     }, [isOpen, activeTab, serviceName]);
 
 
-    // --- Actions ---
     const handlePull = async () => {
         setPulling(true);
         setPullLogs([]);
@@ -215,7 +164,6 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
         }
     };
 
-    // --- New Action Handlers ---
     const handleStop = async () => {
         setStopping(true);
         try {
@@ -250,7 +198,6 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
         } finally { setDeleting(false); }
     };
 
-    // Check for update
     const hasUpdate = service.latestImageDigest && service.currentImageDigest && service.latestImageDigest !== service.currentImageDigest;
 
 
@@ -275,10 +222,8 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                                 <TabsTrigger value="logs">Logs</TabsTrigger>
                             </TabsList>
 
-                            {/* MANAGE TAB */}
                             <TabsContent value="manage" className="space-y-6 py-4">
 
-                                {/* Update Section */}
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h3 className="text-lg font-semibold leading-none tracking-tight mb-4">Lifecycle Actions</h3>
 
@@ -373,14 +318,13 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                                     </div>
                                 ) : (
-                                    <Textarea
-                                        className="font-mono h-96 whitespace-pre"
-                                        placeholder="KEY=VALUE"
+                                    <EnvEditor
                                         value={envContent}
-                                        onChange={(e) => setEnvContent(e.target.value)}
+                                        onChange={setEnvContent}
+                                        disabled={envSaving}
                                     />
                                 )}
-                                <Button onClick={handleSaveEnv} disabled={envSaving || envLoading}>
+                                <Button onClick={handleSaveEnv} disabled={envSaving || envLoading} className="w-full">
                                     {envSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                     Save & Restart
                                 </Button>
@@ -388,11 +332,12 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
 
                             {/* LOGS TAB */}
                             <TabsContent value="logs" className="py-4">
-                                <ScrollArea className="h-[60vh] w-full rounded border bg-black p-4">
-                                    <div className="text-xs font-mono text-white whitespace-pre-wrap">
-                                        {logs.join('')}
-                                    </div>
-                                </ScrollArea>
+                                {activeTab === 'logs' && (
+                                    <EmbeddedLogViewer
+                                        serviceId={service.id}
+                                        serviceName={serviceName}
+                                    />
+                                )}
                             </TabsContent>
                         </Tabs>
                     </div>
