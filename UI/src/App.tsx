@@ -1,8 +1,9 @@
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceList } from "@/components/ServiceList";
 import { ServiceForm } from "@/components/ServiceForm";
-import { SettingsDialog } from "@/components/SettingsDialog";
+import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { ImagePuller } from "@/components/ImagePuller";
+import { ModeToggle } from "@/components/mode-toggle";
 
 function App() {
   return (
@@ -11,12 +12,12 @@ function App() {
         <div className="container mx-auto py-4 px-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">Docker Manager</h1>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">IIIT Kota</span>
           </div>
           <div className="flex items-center gap-2">
+            <ModeToggle />
             <ImagePuller />
             <ServiceForm />
-            <SettingsDialog />
+            <SettingsDrawer />
           </div>
         </div>
       </header>
@@ -32,4 +33,4 @@ function App() {
   );
 }
 
-export default App;;
+export default App;
