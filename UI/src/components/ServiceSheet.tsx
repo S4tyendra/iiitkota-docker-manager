@@ -12,20 +12,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Download, RefreshCw } from 'lucide-react';
-import { apiClient, getApiConfig } from '@/lib/api';
-import type { ServicePayload } from '@/types';
+import { Loader2, Download, RefreshCw, Save } from 'lucide-react';
+import { apiClient, getApiConfig, getServiceEnv, saveServiceEnv } from '@/lib/api';
+import type { ServicePayload, Service } from '@/types';
 import { toast } from 'sonner';
 
 interface ServiceSheetProps {
-    serviceId: string | null;
-    serviceName: string;
-    image: string;
+    service: Service;
     isOpen: boolean;
     onClose: () => void;
 }
 
-export function ServiceSheet({ serviceId, serviceName, image, isOpen, onClose }: ServiceSheetProps) {
+export function ServiceSheet({ service, isOpen, onClose }: ServiceSheetProps) {
+    const serviceName = service.names[0].replace('/', '');
+    const image = service.image;
+
     const [activeTab, setActiveTab] = useState("config");
     // Form State (Config)
     const [formData, setFormData] = useState({
@@ -35,6 +36,11 @@ export function ServiceSheet({ serviceId, serviceName, image, isOpen, onClose }:
         memoryLimit: '512M',
         cpuLimit: '0.5'
     });
+
+    // Env State
+    const [envContent, setEnvContent] = useState('');
+    const [envLoading, setEnvLoading] = useState(false);
+    const [envSaving, setEnvSaving] = useState(false);
 
     // Logs State
     const [logs, setLogs] = useState<string[]>([]);
@@ -47,28 +53,39 @@ export function ServiceSheet({ serviceId, serviceName, image, isOpen, onClose }:
     // Loading State
     const [submitting, setSubmitting] = useState(false);
 
-    // Initialize (Mocking reading existing config for now as API doesn't return config yet)
-    // TODO: Update backend to return config in /services list or separate endpoint
+    // Initialize Config from Service
     useEffect(() => {
         if (isOpen) {
             // Reset states
             setLogs([]);
             setPullLogs([]);
             setPulling(false);
+            setEnvContent('');
             setActiveTab("config");
+
+            // Prefill config
+            if (service.config) {
+                setFormData({
+                    hostPort: service.config.hostPort || '',
+                    containerPort: service.config.containerPort || '',
+                    domain: service.config.domain || '',
+                    memoryLimit: service.config.memoryLimit || '512M',
+                    cpuLimit: service.config.cpuLimit || '0.5'
+                });
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, service]);
 
     // --- Stream Logs ---
     useEffect(() => {
-        if (!isOpen || activeTab !== 'logs' || !serviceId) return;
+        if (!isOpen || activeTab !== 'logs') return;
 
         setLogs([`Connecting to logs for ${serviceName}...`]);
         logAbortController.current = new AbortController();
 
         const fetchLogs = async () => {
             const { host, auth } = getApiConfig();
-            const url = `${host}/services/${serviceId}/logs`;
+            const url = `${host}/services/${service.id}/logs`;
 
             try {
                 const response = await fetch(url, {
@@ -95,7 +112,25 @@ export function ServiceSheet({ serviceId, serviceName, image, isOpen, onClose }:
 
         fetchLogs();
         return () => logAbortController.current?.abort();
-    }, [isOpen, activeTab, serviceId, serviceName]);
+    }, [isOpen, activeTab, service.id, serviceName]);
+
+    // --- Fetch Env ---
+    useEffect(() => {
+        if (isOpen && activeTab === 'env') {
+            const fetchEnv = async () => {
+                setEnvLoading(true);
+                try {
+                    const data = await getServiceEnv(serviceName);
+                    setEnvContent(data);
+                } catch (error) {
+                    toast.error("Failed to load environment variables");
+                } finally {
+                    setEnvLoading(false);
+                }
+            };
+            fetchEnv();
+        }
+    }, [isOpen, activeTab, serviceName]);
 
 
     // --- Actions ---
@@ -161,9 +196,22 @@ export function ServiceSheet({ serviceId, serviceName, image, isOpen, onClose }:
         }
     };
 
+    const handleSaveEnv = async () => {
+        setEnvSaving(true);
+        try {
+            await saveServiceEnv(serviceName, envContent);
+            toast.success("Env saved and service restarting...");
+            onClose();
+        } catch (error: any) {
+            toast.error("Failed to save env: " + error.message);
+        } finally {
+            setEnvSaving(false);
+        }
+    };
+
     return (
         <Sheet open={isOpen} onOpenChange={open => !open && onClose()}>
-            <SheetContent className="sm:max-w-2xl w-[90vw] overflow-y-auto">
+            <SheetContent className="overflow-y-auto p-3">
                 <SheetHeader>
                     <SheetTitle>Manage {serviceName}</SheetTitle>
                     <SheetDescription className="font-mono text-xs text-muted-foreground">
@@ -235,12 +283,26 @@ export function ServiceSheet({ serviceId, serviceName, image, isOpen, onClose }:
                     <TabsContent value="env" className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Environment Variables (.env)</Label>
-                            <Textarea className="font-mono h-64" placeholder="KEY=VALUE" />
+                            {envLoading ? (
+                                <div className="h-64 flex items-center justify-center border rounded bg-muted/20">
+                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : (
+                                <Textarea
+                                    className="font-mono h-64 whitespace-pre"
+                                    placeholder="KEY=VALUE"
+                                    value={envContent}
+                                    onChange={(e) => setEnvContent(e.target.value)}
+                                />
+                            )}
                             <p className="text-xs text-muted-foreground">
-                                * Editing .env directly is not currently supported by backend API. Use Config tab for standard settings.
+                                * Changes will restart the container.
                             </p>
                         </div>
-                        <Button disabled variant="secondary">Save Env (Not Implemented)</Button>
+                        <Button onClick={handleSaveEnv} disabled={envSaving || envLoading}>
+                            {envSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Save & Restart
+                        </Button>
                     </TabsContent>
 
                     {/* LOGS TAB */}

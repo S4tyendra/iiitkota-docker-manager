@@ -42,3 +42,13 @@ export const updateClientConfig = (username?: string, password?: string) => {
         setApiConfig(getApiConfig().host, auth);
     }
 }
+
+export const getServiceEnv = async (serviceName: string): Promise<string> => {
+    const { data } = await apiClient.get<string>(`/services/${serviceName}/env`);
+    return data;
+};
+
+export const saveServiceEnv = async (serviceName: string, content: string) => {
+    const { data } = await apiClient.post(`/services/${serviceName}/env`, { content });
+    return data;
+};

@@ -144,9 +144,7 @@ export function ServiceList() {
                 <ServiceSheet
                     isOpen={sheetOpen}
                     onClose={() => setSheetOpen(false)}
-                    serviceId={selectedService.id}
-                    serviceName={selectedService.names[0].replace('/', '')}
-                    image={selectedService.image}
+                    service={selectedService}
                 />
             )}
         </div>

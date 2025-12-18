@@ -4,6 +4,7 @@ export interface Service {
     image: string;
     state: string;
     status: string;
+    config?: DockerServiceConfig;
 }
 
 export interface DockerServiceConfig {
@@ -15,6 +16,7 @@ export interface DockerServiceConfig {
     domain?: string;
     clientMaxBodySize?: string;
     imageTag?: string;
+    image?: string;
 }
 
 export interface ServicePayload {
