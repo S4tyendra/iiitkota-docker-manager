@@ -39,7 +39,7 @@ function AppContent() {
           <div className="container mx-auto py-4 px-4 flex justify-between items-center">
             <div className="flex items-center gap-6">
               <Link to="/" className="text-xl font-bold flex items-center gap-2">
-                Docker Manager
+                Orchestr8
               </Link>
               <nav className="flex items-center gap-4 text-sm font-medium">
                 <Link to="/" className="hover:text-primary">Dashboard</Link>

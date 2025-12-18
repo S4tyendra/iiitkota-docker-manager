@@ -27,7 +27,7 @@ app.use('/*', cors({
 app.use('/*', async (c, next) => {
   const auth = c.req.header('Authorization');
   if (!auth) {
-    c.header('WWW-Authenticate', 'Basic realm="Access to Docker Manager"');
+    c.header('WWW-Authenticate', 'Basic realm="Access to Orchestr8"');
     return c.text('Unauthorized', 401);
   }
 
@@ -50,7 +50,7 @@ app.use('/*', async (c, next) => {
     return next();
   }
 
-  c.header('WWW-Authenticate', 'Basic realm="Access to Docker Manager"');
+  c.header('WWW-Authenticate', 'Basic realm="Access to Orchestr8"');
   return c.text('Unauthorized', 401);
 });
 
@@ -223,7 +223,7 @@ app.get('/images/pull', requirePerm('global', 'pull_new_image'), async (c) => {
   return stream(c, async (stream) => {
     try {
       const dockerStream = await dockerMgr.instance.pull(image, { 
-        authconfig: { username: 'iiitkota', password: CONFIG.GITHUB_PAT, serveraddress: 'ghcr.io' } 
+        authconfig: { username: CONFIG.DOCKER_USERNAME, password: CONFIG.DOCKER_PASSWORD, serveraddress: CONFIG.DOCKER_SERVER_ADDRESS } 
       });
       
       await new Promise((resolve, reject) => {

@@ -55,7 +55,7 @@ export function SettingsDrawer() {
                     <DrawerHeader>
                         <DrawerTitle>Server Configuration</DrawerTitle>
                         <DrawerDescription>
-                            Set your Docker Manager server connection details.
+                            Set your Orchestr8 server connection details.
                         </DrawerDescription>
                     </DrawerHeader>
                     <div className="p-4 pb-0">

@@ -43,15 +43,20 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle className="text-2xl">Docker Manager Login</CardTitle>
+                    <CardTitle className="text-2xl">Orchestr8 Login</CardTitle>
                     <CardDescription>Enter your credentials to access the manager</CardDescription>
+                    <CardDescription>
+                        <p className="text-xs font-bold">
+                            Read Documentation: <a className='text-blue-500 underline' href="https://github.com/s4tyendra/Orchestr8" target="_blank">https://github.com/s4tyendra/Orchestr8</a>
+                        </p>
+                    </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="serverUrl" className="flex items-center gap-2">
                                 Server URL
-                                <div title={`The URL where the Docker Manager API is running.\n\nNote: If the server is on a different domain/port, ensure you have added ${window.location.host} to ALLOWED_ORIGINS in your server's .env file.`}>
+                                <div title={`The URL where the Orchestr8 API is running.\n\nNote: If the server is on a different domain/port, ensure you have added ${window.location.host} to ALLOWED_ORIGINS in your server's .env file.`}>
                                     <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                                 </div>
                             </Label>
@@ -85,7 +90,7 @@ export default function Login() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
+                        <Button type="submit" className="w-full mt-2" disabled={isLoading}>
                             {isLoading ? "Logging in..." : "Login"}
                         </Button>
                     </CardFooter>
