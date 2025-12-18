@@ -21,6 +21,7 @@ export interface ServicePermissions {
 export interface Service {
     id: string;
     names: string[];
+    name: string;
     image: string;
     state: string;
     status: string;
