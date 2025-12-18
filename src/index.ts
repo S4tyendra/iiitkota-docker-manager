@@ -18,13 +18,12 @@ const app = new Hono<{ Variables: Variables }>();
 const dockerMgr = new DockerManager();
 const nginxMgr = new NginxManager();
 
-// CORS Middleware
 app.use('/*', cors({
   origin: CONFIG.ALLOWED_ORIGINS,
   credentials: true,
 }));
 
-// Custom Basic Auth Middleware
+// Auth Middleware
 app.use('/*', async (c, next) => {
   const auth = c.req.header('Authorization');
   if (!auth) {
@@ -38,13 +37,13 @@ app.use('/*', async (c, next) => {
   const decoded = atob(encoded);
   const [username, password] = decoded.split(':');
 
-  // 1. Check Env Admin
+  // Env Admin
   if (username === CONFIG.AUTH.USERNAME && password === CONFIG.AUTH.PASSWORD) {
     c.set('user', { username: 'admin', is_admin: true, permissions: [], id: 0, password_hash: '' });
     return next();
   }
 
-  // 2. Check Database Users
+  // Database Users
   const user = DB.getUser(username);
   if (user && Bun.password.verifySync(password, user.password_hash)) {
     c.set('user', user);
@@ -72,7 +71,7 @@ const requireAdmin = createMiddleware(async (c, next) => {
   await next();
 });
 
-// --- User Management (Admin Only) ---
+// User Management
 
 app.get('/api/users', requireAdmin, (c) => {
   return c.json(DB.allUsers);
@@ -109,14 +108,12 @@ app.patch('/api/users/:username/permissions', requireAdmin, async (c) => {
   return c.json({ success: true });
 });
 
-// --- Self Service ---
 
 app.post('/api/change-password', async (c) => {
   const user = c.get('user');
   const { password } = await c.req.json();
   if (!password) return c.json({ error: 'New password required' }, 400);
   
-  // If admin from env, they can't change password here as it is static
   if (user.username === CONFIG.AUTH.USERNAME && user.is_admin && !user.id) {
     return c.json({ error: 'Cannot change env-based admin password via UI. Update .env file.' }, 400);
   }
@@ -126,7 +123,6 @@ app.post('/api/change-password', async (c) => {
   return c.json({ success: true });
 });
 
-// --- Services Routes ---
 
 // 1. Start/Update Service (manage)
 app.post('/services/start', 
@@ -191,7 +187,6 @@ app.get('/services/:id/logs', async (c) => {
   const user = c.get('user');
 
   // Need to resolve container ID to Service Name to check permissions
-  // This is tricky. We'll try to find the container.
   try {
     const container = dockerMgr.instance.getContainer(containerId);
     const info = await container.inspect();

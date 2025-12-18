@@ -4,13 +4,11 @@ import { CONFIG } from './config';
 import type { User, Permission } from './types';
 import { existsSync, mkdirSync } from 'fs';
 
-// Ensure data directory exists
 const dbDir = join(CONFIG.PATHS.ENV_BASE_DIR, '..', 'data');
 if (!existsSync(dbDir)) mkdirSync(dbDir, { recursive: true });
 
 const db = new Database(join(dbDir, 'users.sqlite'));
 
-// Initialize Tables
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,10 +71,10 @@ export const DB = {
     if (user.is_admin) return true; // Super admin
     
     return user.permissions.some(p => {
-      // Check Scope
+      // Scope
       if (p.scope !== scope && p.scope !== 'global') return false;
 
-      // Exact match
+      // Action
       if (p.action === action) return true;
 
       // Inheritance logic
