@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { setApiConfig, checkAuth, getApiConfig, apiClient } from './api';
-import type { Permission, User } from '@/types';
+import type { User } from '@/types';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -110,7 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
     };
 
-    const checkPermission = (scope: string, action: string) => {
+    const checkPermission = (_: string, __: string) => {
+        // _scope, __action
         if (isAdmin) return true;
         // logic for checking permissions if we had them stored globally
         // For service scope, it's usually checked against the service object directly.
