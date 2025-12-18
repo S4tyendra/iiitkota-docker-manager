@@ -32,7 +32,7 @@ export function ServiceList() {
 
     useEffect(() => {
         fetchServices();
-        const interval = setInterval(fetchServices, 60*1000);
+        const interval = setInterval(fetchServices, 60 * 1000);
         return () => clearInterval(interval);
     }, []);
 
@@ -117,7 +117,7 @@ export function ServiceList() {
                         return (
                             <Card
                                 key={service.id}
-                                className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/20"
+                                className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 hover:border-primary/20"
                                 onClick={() => handleManage(service)}
                             >
                                 {/* Status Indicator Line */}
@@ -176,7 +176,7 @@ export function ServiceList() {
                                     </div>
 
                                     {/* Hover Action Hint */}
-                                    <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between opacity-50 group-hover:opacity-100 transition-opacity duration-200">
                                         <span className="text-xs text-muted-foreground">Click to manage</span>
                                         <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                                     </div>
