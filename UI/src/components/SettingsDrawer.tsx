@@ -12,7 +12,7 @@ import {
     DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Settings } from 'lucide-react';
-import { getApiConfig, setApiConfig, updateClientConfig } from '@/lib/api';
+import { getApiConfig, setApiConfig } from '@/lib/api';
 import { toast } from 'sonner';
 
 export function SettingsDrawer() {
@@ -30,10 +30,11 @@ export function SettingsDrawer() {
 
     const handleSave = () => {
         try {
-            setApiConfig(host);
+            let auth = undefined;
             if (username && password) {
-                updateClientConfig(username, password);
+                auth = btoa(`${username}:${password}`);
             }
+            setApiConfig(host, auth);
             toast.success('Configuration saved');
             setOpen(false);
             window.location.reload();

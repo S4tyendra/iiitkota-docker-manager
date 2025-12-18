@@ -1,3 +1,23 @@
+export interface Permission {
+    scope: string;
+    action: string;
+}
+
+export interface User {
+    username: string;
+    permissions: Permission[];
+    isAdmin?: boolean; // Inferred on frontend if viewing user list succeeds
+}
+
+export interface ServicePermissions {
+    manage: boolean;
+    view_config: boolean;
+    edit_config: boolean;
+    view_env: boolean;
+    edit_env: boolean;
+    view_logs: boolean;
+}
+
 export interface Service {
     id: string;
     names: string[];
@@ -7,6 +27,7 @@ export interface Service {
     config?: DockerServiceConfig;
     latestImageDigest?: string;
     currentImageDigest?: string;
+    _permissions?: ServicePermissions;
 }
 
 export interface DockerServiceConfig {
