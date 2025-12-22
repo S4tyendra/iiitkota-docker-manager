@@ -218,8 +218,9 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
             setUpdateLogs(prev => [...prev, `Update failed: ${error.message}`]);
             toast.error("Update failed");
         } finally {
-            // keep logs visible? 
-            // setIsUpdating(false); // Don't hide immediately so they can see logs
+            setTimeout(() => {
+                setIsUpdating(false);
+            }, 2000);
         }
     };
 
