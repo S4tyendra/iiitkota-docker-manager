@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Drawer,
     DrawerContent,
@@ -124,6 +124,14 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
 
     const [updateLogs, setUpdateLogs] = useState<string[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
+    const updateLogEndRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll update logs to bottom when new entries are added
+    useEffect(() => {
+        if (updateLogEndRef.current) {
+            updateLogEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [updateLogs]);
 
     // Helper to pull image and stream logs
     const runPull = async (imageToPull: string, logSetter: (logs: string[] | ((prev: string[]) => string[])) => void) => {
@@ -369,7 +377,7 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                                                                     {updateLogs.map((log, i) => (
                                                                         <div key={i} className="break-all">{log}</div>
                                                                     ))}
-                                                                    {/* Auto-scroll anchor could be added here */}
+                                                                    <div ref={updateLogEndRef} />
                                                                 </div>
                                                             </ScrollArea>
                                                         </div>

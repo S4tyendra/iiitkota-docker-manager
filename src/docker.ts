@@ -122,6 +122,33 @@ networks:
     }
   }
 
+  /**
+   * Get the registry manifest digest for a locally pulled image.
+   * Docker stores this in RepoDigests after pulling from a registry.
+   * Format: "ghcr.io/owner/pkg@sha256:abc123..."
+   * Returns just the "sha256:abc123..." part to match GitHub API format.
+   */
+  async getImageRepoDigest(imageName: string): Promise<string | null> {
+    try {
+      const image = this.docker.getImage(imageName);
+      const info = await image.inspect();
+      
+      // RepoDigests contains entries like "ghcr.io/iiitkota/api-server@sha256:abc123..."
+      // We need just the digest part after @
+      if (info.RepoDigests && info.RepoDigests.length > 0) {
+        const repoDigest = info.RepoDigests[0];
+        const atIndex = repoDigest.lastIndexOf('@');
+        if (atIndex !== -1) {
+          return repoDigest.substring(atIndex + 1);
+        }
+      }
+      return null;
+    } catch (e) {
+      // Image might not exist locally or other error
+      return null;
+    }
+  }
+
   async deleteService(serviceName: string) {
     const dir = this.ensureEnvDir(serviceName);
     // 1. Docker Compose Down

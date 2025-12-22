@@ -357,7 +357,12 @@ app.get('/services', async (c) => {
         // Only return config if they have view_configuration
         const canViewConfig = DB.checkPermission(user, `service:${name}`, 'view_configuration');
         
+        // Fetch latest version info from registry
         const latestInfo = await dockerMgr.getLatestImageDigest(ct.Image);
+        
+        // Get the REGISTRY digest from the locally pulled image (NOT ImageID)
+        // This now matches the format returned by GitHub API
+        const currentDigest = await dockerMgr.getImageRepoDigest(ct.Image);
 
         return {
             id: ct.Id.substring(0, 12),
@@ -369,7 +374,7 @@ app.get('/services', async (c) => {
             config: canViewConfig ? (savedConfig || {}) : {},
             latestImageDigest: latestInfo?.digest || null,
             latestImageTags: latestInfo?.tags || [],
-            currentImageDigest: ct.ImageID,
+            currentImageDigest: currentDigest,
             // Helper for UI to know what they can do
             _permissions: {
                 manage: DB.checkPermission(user, `service:${name}`, 'manage'),
