@@ -49,6 +49,12 @@ export function ServiceList() {
             badge: 'bg-red-500/10 text-red-500 border-red-500/20',
             pulse: false
         };
+        if (state === 'available') return {
+            color: 'bg-blue-500',
+            glow: 'shadow-blue-500/50',
+            badge: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+            pulse: false
+        };
         return {
             color: 'bg-amber-500',
             glow: 'shadow-amber-500/50',

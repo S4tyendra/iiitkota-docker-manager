@@ -122,13 +122,14 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
     }, [isOpen, activeTab, serviceName, canViewEnv]);
 
 
-    const handlePull = async () => {
-        setPulling(true);
-        setPullLogs([]);
-        const { host, auth } = getApiConfig();
+    const [updateLogs, setUpdateLogs] = useState<string[]>([]);
+    const [isUpdating, setIsUpdating] = useState(false);
 
+    // Helper to pull image and stream logs
+    const runPull = async (imageToPull: string, logSetter: (logs: string[] | ((prev: string[]) => string[])) => void) => {
+        const { host, auth } = getApiConfig();
         try {
-            const response = await fetch(`${host}/images/pull?image=${image}`, {
+            const response = await fetch(`${host}/images/pull?image=${imageToPull}`, {
                 headers: auth ? { 'Authorization': `Basic ${auth}` } : {},
             });
 
@@ -144,37 +145,86 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                 lines.forEach(line => {
                     try {
                         const json = JSON.parse(line);
-                        setPullLogs(prev => [...prev, `${json.status} ${json.id || ''}`]);
+                        logSetter(prev => [...prev, `${json.status} ${json.id || ''}`]);
                     } catch {
-                        setPullLogs(prev => [...prev, line]);
+                        logSetter(prev => [...prev, line]);
                     }
                 });
             }
+        } catch (err: any) {
+            logSetter(prev => [...prev, `Error: ${err.message}`]);
+            throw err;
+        }
+    };
+
+    const handlePull = async () => {
+        setPulling(true);
+        setPullLogs([]);
+        try {
+            await runPull(image, setPullLogs);
             toast.success("Image pulled successfully");
         } catch (err: any) {
             toast.error(`Pull failed: ${err.message}`);
-            setPullLogs(prev => [...prev, `Error: ${err.message}`]);
         } finally {
             setPulling(false);
         }
     };
 
-    const handleUpdate = async (recreate: boolean) => {
-        if (!canManage && !canEditConfig) return;
-        setSubmitting(true);
-        try {
-            // Determine image to use
-            let targetImage = image;
-            if (recreate && service.latestImageTags && service.latestImageTags.length > 0 && service.latestImageDigest !== service.currentImageDigest) {
-                
-                const [repo] = image.split(':');
-                targetImage = `${repo}:${service.latestImageTags[0]}`;
-            }
+    const handleSmartUpdate = async (newTag: string) => {
+        const [repo] = image.split(':');
+        const targetImage = `${repo}:${newTag}`;
 
+        setIsUpdating(true);
+        setUpdateLogs([`Starting update to ${newTag}...`]);
+
+        try {
+            // 1. Pull new image
+            setUpdateLogs(prev => [...prev, `Pulling ${targetImage}...`]);
+            await runPull(targetImage, setUpdateLogs);
+            setUpdateLogs(prev => [...prev, 'Pull complete. Recreating service...', '']);
+
+            // 2. Update service
             const payload: ServicePayload = {
                 service: serviceName,
                 image: targetImage,
-                recreate: recreate,
+                recreate: true,
+                config: {
+                    hostPort: formData.hostPort || '8080',
+                    containerPort: formData.containerPort || '80',
+                    domain: formData.domain || undefined,
+                    memoryLimit: formData.memoryLimit,
+                    cpuLimit: formData.cpuLimit
+                }
+            };
+
+            await apiClient.post('/services/start', payload);
+            setUpdateLogs(prev => [...prev, 'Service updated successfully!']);
+            toast.success(`Service updated to ${newTag}`);
+
+            // Close after a brief delay so user sees success
+            setTimeout(() => {
+                onClose();
+            }, 1000);
+
+        } catch (error: any) {
+            setUpdateLogs(prev => [...prev, `Update failed: ${error.message}`]);
+            toast.error("Update failed");
+        } finally {
+            // keep logs visible? 
+            // setIsUpdating(false); // Don't hide immediately so they can see logs
+        }
+    };
+
+
+    const handleRecreate = async () => {
+        if (!canManage && !canEditConfig) return;
+        setSubmitting(true);
+        try {
+            // Explicitly use CURRENT image logic, do not auto-swap
+            const payload: ServicePayload = {
+                service: serviceName,
+                image: image, // Keep existing image string
+                recreate: true,
                 config: {
                     hostPort: formData.hostPort || '8080',
                     containerPort: formData.containerPort || '80',
@@ -184,14 +234,24 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                 }
             };
             await apiClient.post('/services/start', payload);
-            toast.success(`Service ${serviceName} updated/recreated`);
+            toast.success(`Service ${serviceName} recreated`);
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Update failed');
+            toast.error(error.response?.data?.error || 'Recreate failed');
         } finally {
             setSubmitting(false);
         }
     };
+
+    // Generic config update (Save & Recreate)
+    const handleConfigUpdate = async () => {
+        // This is technically a "Recreate" with new config.
+        // It should also Preserve the image tag unless the user manually edited the config?
+        // In this UI, image tag isn't editable in the config tab inputs (only ports/limits).
+        // So we treat it same as handleRecreate but with new form data.
+        await handleRecreate();
+    };
+
 
     const handleSaveEnv = async () => {
         if (!canEditEnv) return;
@@ -277,34 +337,62 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                                             <h3 className="text-lg font-semibold leading-none tracking-tight mb-4">Lifecycle Actions</h3>
 
                                             {hasUpdate && (
-                                                <div className="mb-6 p-4 bg-green-900/20 border border-green-900/50 rounded-md flex items-center justify-between">
-                                                    <div>
-                                                        <h4 className="font-bold text-green-500">Update Available {newVersionTag && <span className="text-xs bg-green-900/40 px-2 py-0.5 rounded ml-2">{newVersionTag}</span>}</h4>
-                                                        <p className="text-sm text-muted-foreground">A new version of this image is available.</p>
-                                                    </div>
-                                                    <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdate(true)} disabled={submitting}>
-                                                        {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                                        Update to {newVersionTag || 'Latest'}
-                                                    </Button>
+                                                <div className="mb-6 border border-green-900/50 bg-green-900/10 rounded-md overflow-hidden transition-all duration-300">
+                                                    {!isUpdating ? (
+                                                        <div className="p-4 flex items-center justify-between">
+                                                            <div>
+                                                                <h4 className="font-bold text-green-500 flex items-center gap-2">
+                                                                    <Download className="h-4 w-4" />
+                                                                    Update Available
+                                                                    {newVersionTag && <span className="text-xs bg-green-500/20 px-2 py-0.5 rounded text-green-400 font-mono">{newVersionTag}</span>}
+                                                                </h4>
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    Current: <span className="font-mono text-red-400">{image.split(':')[1] || 'latest'}</span> → New: <span className="font-mono text-green-400">{newVersionTag}</span>
+                                                                </p>
+                                                            </div>
+                                                            <Button
+                                                                className="bg-green-600 hover:bg-green-700 text-white border-0"
+                                                                onClick={() => newVersionTag && handleSmartUpdate(newVersionTag)}
+                                                                disabled={isUpdating}
+                                                            >
+                                                                Update Now
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="p-4 bg-black/50">
+                                                            <div className="flex items-center gap-2 mb-2 text-green-400 text-sm font-medium">
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                Updating to {newVersionTag}...
+                                                            </div>
+                                                            <ScrollArea className="h-48 w-full rounded border border-white/10 bg-black/80 p-3">
+                                                                <div className="font-mono text-xs text-gray-300 space-y-1">
+                                                                    {updateLogs.map((log, i) => (
+                                                                        <div key={i} className="break-all">{log}</div>
+                                                                    ))}
+                                                                    {/* Auto-scroll anchor could be added here */}
+                                                                </div>
+                                                            </ScrollArea>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
 
                                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                                <Button variant="outline" onClick={() => handleUpdate(true)} disabled={submitting}>
+                                                <Button variant="outline" onClick={handleRecreate} disabled={submitting || isUpdating}>
                                                     <RefreshCw className="mr-2 h-4 w-4" /> Recreate
                                                 </Button>
 
-                                                <Button variant="outline" onClick={handleRestart} disabled={restarting}>
+                                                <Button variant="outline" onClick={handleRestart} disabled={restarting || isUpdating}>
                                                     {restarting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                                                     Restart
                                                 </Button>
 
-                                                <Button variant="destructive" onClick={handleStop} disabled={stopping}>
+                                                <Button variant="destructive" onClick={handleStop} disabled={stopping || isUpdating}>
                                                     {stopping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Power className="mr-2 h-4 w-4" />}
                                                     Stop
                                                 </Button>
 
-                                                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                                                <Button variant="destructive" onClick={handleDelete} disabled={deleting || isUpdating}>
                                                     {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                                                     Delete
                                                 </Button>
@@ -357,7 +445,7 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                                     </div>
                                 </div>
                                 {canEditConfig && (
-                                    <Button className="mt-4" onClick={() => handleUpdate(true)} disabled={submitting}>
+                                    <Button className="mt-4" onClick={handleConfigUpdate} disabled={submitting}>
                                         Save & Recreate
                                     </Button>
                                 )}

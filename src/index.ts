@@ -381,8 +381,43 @@ app.get('/services', async (c) => {
             }
         };
     }));
+    
+    // 2. Fetch Registry Images
+    const registryImages = await dockerMgr.listRegistryImages();
+    // @ts-ignore
+    const runningNames = new Set(enriched.filter(Boolean).map(s => s!.name));
+    
+    const availableServices = registryImages
+        .filter(img => !runningNames.has(img.name)) // Only show if not already running
+        .map(img => ({
+            id: `registry-${img.name}`,
+            names: [`/${img.name}`],
+            name: img.name,
+            image: img.image,
+            state: 'available', // New state
+            status: 'Available to Install',
+            config: {},
+            latestImageDigest: null, 
+            latestImageTags: [],
+            currentImageDigest: '',
+            _permissions: {
+                manage: DB.checkPermission(user, 'global', 'add_new_service'), 
+                view_config: true, 
+                edit_config: true,
+                view_env: true,
+                edit_env: true,
+                view_logs: false
+            }
+        }));
 
-    return c.json(enriched.filter(Boolean));
+    const showAvailable = DB.checkPermission(user, 'global', 'add_new_service');
+
+    const final = [
+        ...enriched.filter(Boolean),
+        ...(showAvailable ? availableServices : [])
+    ];
+
+    return c.json(final);
   } catch (err: any) {
     return c.json({ error: `Docker Error: ${err.message}` }, 500);
   }

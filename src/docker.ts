@@ -182,4 +182,42 @@ networks:
       return null;
     }
   }
+
+  async listRegistryImages(): Promise<Array<{ name: string, image: string, updated_at: string }>> {
+    if (!CONFIG.GITHUB_PAT) return [];
+    
+    let owner = CONFIG.DOCKER_USERNAME || 'iiitkota';
+
+    const tryFetch = async (type: 'users' | 'orgs') => {
+        const url = `https://api.github.com/${type}/${owner}/packages?package_type=container`;
+        return fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${CONFIG.GITHUB_PAT}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+        });
+    };
+
+    try {
+        let response = await tryFetch('users');
+        if (response.status === 404 || response.status === 403) { 
+             response = await tryFetch('orgs');
+        }
+
+        if (response.ok) {
+            const pkgs = await response.json();
+            if (Array.isArray(pkgs)) {
+                return pkgs.map((p: any) => ({
+                    name: p.name,
+                    image: `ghcr.io/${p.owner.login}/${p.name}:latest`,
+                    updated_at: p.updated_at
+                }));
+            }
+        }
+    } catch (e) {
+        console.error("Failed to list registry images:", e);
+    }
+    return [];
+  }
 }
