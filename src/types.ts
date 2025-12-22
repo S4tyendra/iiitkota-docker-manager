@@ -35,3 +35,24 @@ export interface NginxConfig {
   port: string;
   clientMaxBodySize: string;
 }
+
+export interface EnrichedService {
+  id: string;
+  names: string[];
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+  config: DockerServiceConfig;
+  latestImageDigest: string | null;
+  latestImageTags?: string[];
+  currentImageDigest: string;
+  _permissions: {
+      manage: boolean;
+      view_config: boolean;
+      edit_config: boolean;
+      view_env: boolean;
+      edit_env: boolean;
+      view_logs: boolean;
+  };
+}

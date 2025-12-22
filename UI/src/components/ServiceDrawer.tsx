@@ -163,9 +163,17 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
         if (!canManage && !canEditConfig) return;
         setSubmitting(true);
         try {
+            // Determine image to use
+            let targetImage = image;
+            if (recreate && service.latestImageTags && service.latestImageTags.length > 0 && service.latestImageDigest !== service.currentImageDigest) {
+                
+                const [repo] = image.split(':');
+                targetImage = `${repo}:${service.latestImageTags[0]}`;
+            }
+
             const payload: ServicePayload = {
                 service: serviceName,
-                image: image,
+                image: targetImage,
                 recreate: recreate,
                 config: {
                     hostPort: formData.hostPort || '8080',
@@ -234,7 +242,7 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
     };
 
     const hasUpdate = service.latestImageDigest && service.currentImageDigest && service.latestImageDigest !== service.currentImageDigest;
-
+    const newVersionTag = (hasUpdate && service.latestImageTags && service.latestImageTags.length > 0) ? service.latestImageTags[0] : null;
 
     return (
         <Drawer open={isOpen} onOpenChange={open => !open && onClose()}>
@@ -244,7 +252,7 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                         <DrawerTitle>Manage {serviceName}</DrawerTitle>
                         <DrawerDescription className="font-mono text-xs truncate">
                             {image}
-                            {hasUpdate && <span className="ml-2 text-green-500 font-bold">(Update Available)</span>}
+                            {hasUpdate && <span className="ml-2 text-green-500 font-bold">(Update Available{newVersionTag ? `: ${newVersionTag}` : ''})</span>}
                         </DrawerDescription>
                     </DrawerHeader>
 
@@ -271,12 +279,12 @@ export function ServiceDrawer({ service, isOpen, onClose }: ServiceDrawerProps) 
                                             {hasUpdate && (
                                                 <div className="mb-6 p-4 bg-green-900/20 border border-green-900/50 rounded-md flex items-center justify-between">
                                                     <div>
-                                                        <h4 className="font-bold text-green-500">Update Available</h4>
+                                                        <h4 className="font-bold text-green-500">Update Available {newVersionTag && <span className="text-xs bg-green-900/40 px-2 py-0.5 rounded ml-2">{newVersionTag}</span>}</h4>
                                                         <p className="text-sm text-muted-foreground">A new version of this image is available.</p>
                                                     </div>
                                                     <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdate(true)} disabled={submitting}>
                                                         {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                                                        Update Service
+                                                        Update to {newVersionTag || 'Latest'}
                                                     </Button>
                                                 </div>
                                             )}

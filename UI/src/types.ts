@@ -27,6 +27,7 @@ export interface Service {
     status: string;
     config?: DockerServiceConfig;
     latestImageDigest?: string;
+    latestImageTags?: string[];
     currentImageDigest?: string;
     _permissions?: ServicePermissions;
 }

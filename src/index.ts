@@ -357,7 +357,7 @@ app.get('/services', async (c) => {
         // Only return config if they have view_configuration
         const canViewConfig = DB.checkPermission(user, `service:${name}`, 'view_configuration');
         
-        const latestImageDigest = await dockerMgr.getLatestImageDigest(ct.Image);
+        const latestInfo = await dockerMgr.getLatestImageDigest(ct.Image);
 
         return {
             id: ct.Id.substring(0, 12),
@@ -367,7 +367,8 @@ app.get('/services', async (c) => {
             state: ct.State,
             status: ct.Status,
             config: canViewConfig ? (savedConfig || {}) : {},
-            latestImageDigest,
+            latestImageDigest: latestInfo?.digest || null,
+            latestImageTags: latestInfo?.tags || [],
             currentImageDigest: ct.ImageID,
             // Helper for UI to know what they can do
             _permissions: {

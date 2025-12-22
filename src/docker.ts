@@ -132,32 +132,49 @@ networks:
     await Bun.spawn(['rm', '-rf', dir]).exited;
   }
 
-  async getLatestImageDigest(imageName: string): Promise<string | null> {
+  async getLatestImageDigest(imageName: string): Promise<{ digest: string, tags: string[] } | null> {
     if (!imageName.startsWith('ghcr.io/')) return null;
 
     try {
-      // Handle image name with digest or tag
-      let cleanName = imageName;
-      if (cleanName.includes('@')) cleanName = cleanName.split('@')[0];
-
-      const parts = cleanName.split('/');
+      // ghcr.io/owner/package:tag
+      const parts = imageName.split('/');
       // parts[0] is ghcr.io
-      const repoAndTag = parts.slice(1).join('/');
-      let [repo, tag] = repoAndTag.split(':');
-      if (!tag) tag = 'latest';
+      const owner = parts[1];
+      let pkg = parts.slice(2).join('/');
+      // remove tag from package name if present for API call
+      if (pkg.includes(':')) pkg = pkg.split(':')[0];
 
-      const url = `https://ghcr.io/v2/${repo}/manifests/${tag}`;
+      if (!CONFIG.GITHUB_PAT) {
+         console.warn('GITHUB_PAT missing, cannot fetch private registry details');
+         return null;
+      }
 
-      const response = await fetch(url, {
-        method: 'HEAD',
-        headers: {
-          'Authorization': `Bearer ${CONFIG.GITHUB_PAT}`,
-          'Accept': 'application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'
-        }
-      });
+      const tryFetch = async (type: 'users' | 'orgs') => {
+          const url = `https://api.github.com/${type}/${owner}/packages/container/${pkg}/versions`;
+          return fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${CONFIG.GITHUB_PAT}`,
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28'
+            }
+          });
+      };
+
+      let response = await tryFetch('users');
+      if (response.status === 404) {
+          response = await tryFetch('orgs');
+      }
 
       if (response.ok) {
-        return response.headers.get('Docker-Content-Digest');
+        const versions = await response.json();
+        // GitHub returns sorted by created_at desc
+        if (Array.isArray(versions) && versions.length > 0) {
+            const latest = versions[0];
+            return {
+                digest: latest.name,
+                tags: latest.metadata?.container?.tags || []
+            };
+        }
       }
       return null;
     } catch (e) {
