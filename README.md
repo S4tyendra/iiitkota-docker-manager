@@ -1,5 +1,3 @@
-# Orchestr8: IIIT Kota Container Orchestrator
-
 ## Technical Documentation & Deployment Guide
 
 **Orchestr8** is a lightweight, custom Platform-as-a-Service (PaaS) solution designed to simplify the deployment of multiple Dockerized applications on a single server. It automates the complexity of Nginx reverse proxy configuration, SSL termination, and Docker container management, effectively turning a raw Linux server into a powerful deployment hub.
